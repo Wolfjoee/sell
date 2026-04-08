@@ -1,1 +1,1 @@
-worker: python sheinverse_women.py
+worker: python bot.py
