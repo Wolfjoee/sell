@@ -21,7 +21,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-async def on_startup():
+async def on_startup(bot: Bot):
     """Actions on bot startup"""
     logger.info("Initializing database...")
     await db.init_db()
@@ -35,7 +35,7 @@ async def on_startup():
             logger.error(f"Failed to notify admin {admin_id}: {e}")
 
 
-async def on_shutdown():
+async def on_shutdown(bot: Bot):
     """Actions on bot shutdown"""
     logger.info("Bot is shutting down...")
     
@@ -49,8 +49,6 @@ async def on_shutdown():
 
 async def main():
     """Main bot function"""
-    global bot
-    
     # Initialize bot and dispatcher
     bot = Bot(
         token=BOT_TOKEN,
@@ -65,22 +63,27 @@ async def main():
     dp.include_router(payment_router)
     
     # Startup actions
-    await on_startup()
+    dp.startup.register(lambda: on_startup(bot))
+    dp.shutdown.register(lambda: on_shutdown(bot))
     
     try:
         # Start polling
         logger.info("Bot started successfully!")
+        await on_startup(bot)
         await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+    except KeyboardInterrupt:
+        logger.info("Bot stopped by user")
+    except Exception as e:
+        logger.error(f"Critical error: {e}")
+        raise
     finally:
-        await on_shutdown()
+        await on_shutdown(bot)
         await bot.session.close()
 
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
-    except KeyboardInterrupt:
-        logger.info("Bot stopped by user")
     except Exception as e:
-        logger.error(f"Critical error: {e}")
+        logger.error(f"Failed to start bot: {e}")
         sys.exit(1)
